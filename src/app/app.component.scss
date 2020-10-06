@@ -1,0 +1,28 @@
+*,
+*:before,
+*:after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font: 20px/1 'Verdana', sans-serif;
+  height: 100%;
+  width: 100%;
+}
+body {
+  background: linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 2px),
+  linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 2px);
+  background-size: 1em 1em;
+  background-color: #ddd;
+  display: flex;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+#app {
+  text-align: center;
+}

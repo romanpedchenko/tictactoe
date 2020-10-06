@@ -1,0 +1,22 @@
+button {
+  margin: 12px 2px 5px;
+  background-color: #4caf50; /* Green */
+  border: none;
+  color: white;
+  padding: 16px 61px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  border-radius: 3px;
+}
+
+button:active,
+button:focus {
+  outline: none;
+}
+
+button:disabled {
+  background-color: #c0c0c0;
+  cursor: not-allowed;
+}
