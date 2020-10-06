@@ -7,7 +7,14 @@ import {
   Renderer2,
   ViewChild,
 } from '@angular/core';
-import { BehaviorSubject, concat, fromEvent, partition, Subject } from 'rxjs';
+import {
+  BehaviorSubject,
+  concat,
+  fromEvent,
+  partition,
+  ReplaySubject,
+  Subject,
+} from 'rxjs';
 import {
   filter,
   last,
@@ -15,6 +22,7 @@ import {
   pairwise,
   switchMap,
   take,
+  takeUntil,
   tap,
 } from 'rxjs/operators';
 import { element } from 'protractor';
@@ -51,6 +59,7 @@ export class FieldComponent implements OnInit, AfterViewInit {
     [1, 5, 9],
     [3, 5, 7],
   ];
+  private destroy$: ReplaySubject<any> = new ReplaySubject<any>();
 
   constructor(@Inject(Renderer2) private readonly renderer: Renderer2) {}
 
@@ -84,54 +93,11 @@ export class FieldComponent implements OnInit, AfterViewInit {
 
     concat(even, moreThenFive$)
       .pipe(map((arr: ClickedItem[]) => arr.filter((_, i) => i % 2 !== 0)))
-      .subscribe((playerEven) => {
-        const combination = playerEven.map(({ id }) => id);
-        const [winCombination] = this.wins.filter((win) =>
-          win.every((el) => combination.includes(el))
-        );
-
-        if (!winCombination) {
-          return;
-        }
-
-        const cssWinClass = this.getCssWinClass(winCombination);
-
-        playerEven
-          .filter(({ id }) => winCombination.includes(id))
-          .forEach(({ element: el }) => {
-            if (!el) {
-              return;
-            }
-
-            this.addCssClass(el, 'win');
-            this.addCssClass(el, cssWinClass);
-          });
-      });
+      .subscribe((playerEven) => this.checkWinCombination(playerEven));
 
     concat(odd, moreThenFive$)
       .pipe(map((arr: ClickedItem[]) => arr.filter((_, i) => i % 2 === 0)))
-      .subscribe((playerOdd) => {
-        const combination = playerOdd.map(({ id }) => id);
-        const [winCombination] = this.wins.filter((win) =>
-          win.every((el) => combination.includes(el))
-        );
-        if (!winCombination) {
-          return;
-        }
-
-        const cssWinClass = this.getCssWinClass(winCombination);
-
-        playerOdd
-          .filter(({ id }) => winCombination.includes(id))
-          .forEach(({ element: el }) => {
-            if (!el) {
-              return;
-            }
-
-            this.addCssClass(el, 'win');
-            this.addCssClass(el, cssWinClass);
-          });
-      });
+      .subscribe((playerOdd) => this.checkWinCombination(playerOdd));
   }
 
   ngAfterViewInit(): void {
@@ -140,7 +106,10 @@ export class FieldComponent implements OnInit, AfterViewInit {
     }
 
     fromEvent(this.field.nativeElement, 'click')
-      .pipe(filter((e) => Boolean(e.target)))
+      .pipe(
+        filter((e) => Boolean(e.target)),
+        takeUntil(this.destroy$)
+      )
       .subscribe(({ target }) => {
         const id = Number((target as HTMLDivElement).getAttribute('data-id'));
         this.clickedCells$.pipe(take(1)).subscribe((current) => {
@@ -154,6 +123,30 @@ export class FieldComponent implements OnInit, AfterViewInit {
 
   private addCssClass(el: HTMLDivElement, cssClass: string): void {
     this.renderer.addClass(el, cssClass);
+  }
+
+  private checkWinCombination(player: ClickedItem[]): void {
+    const combination = player.map(({ id }) => id);
+    const [winCombination] = this.wins.filter((win) =>
+      win.every((el) => combination.includes(el))
+    );
+    if (!winCombination) {
+      return;
+    }
+
+    this.destroy$.next(null);
+    const cssWinClass = this.getCssWinClass(winCombination);
+
+    player
+      .filter(({ id }) => winCombination.includes(id))
+      .forEach(({ element: el }) => {
+        if (!el) {
+          return;
+        }
+
+        this.addCssClass(el, 'win');
+        this.addCssClass(el, cssWinClass);
+      });
   }
 
   private getCssWinClass([a, b, c]: number[]): string {
