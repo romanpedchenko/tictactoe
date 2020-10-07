@@ -8,29 +8,22 @@ import {
   ViewChild,
 } from '@angular/core';
 import {
-  BehaviorSubject,
   concat,
   fromEvent,
   partition,
   ReplaySubject,
-  Subject,
 } from 'rxjs';
 import {
   filter,
-  last,
   map,
-  pairwise,
-  switchMap,
   take,
   takeUntil,
-  tap,
+  withLatestFrom,
 } from 'rxjs/operators';
-import { element } from 'protractor';
-
-type ClickedItem = {
-  id: number;
-  element: HTMLDivElement | null;
-};
+import {
+  ClickedItem,
+  TictactoeService,
+} from '../../services/tictactoe.service';
 
 @Component({
   selector: 'app-field',
@@ -47,8 +40,6 @@ export class FieldComponent implements OnInit, AfterViewInit {
     [7, 8, 9],
   ];
 
-  public clickedCells$ = new BehaviorSubject<ClickedItem[]>([]);
-
   private wins = [
     [1, 2, 3],
     [4, 5, 6],
@@ -61,16 +52,25 @@ export class FieldComponent implements OnInit, AfterViewInit {
   ];
   private destroy$: ReplaySubject<any> = new ReplaySubject<any>();
 
-  constructor(@Inject(Renderer2) private readonly renderer: Renderer2) {}
+  constructor(
+    @Inject(Renderer2) private readonly renderer: Renderer2,
+    private tictactoe: TictactoeService
+  ) {}
 
   ngOnInit(): void {
     const [even, odd] = partition(
-      this.clickedCells$,
+      this.tictactoe.clickedCells$,
       (arr) => arr.length % 2 === 0
     );
 
-    concat(even, this.clickedCells$)
-      .pipe(map((cells: ClickedItem[]) => cells[cells.length - 1]))
+    const even$ = even.pipe(takeUntil(this.destroy$));
+    const odd$ = odd.pipe(takeUntil(this.destroy$));
+
+    concat(even$, this.tictactoe.clickedCells$)
+      .pipe(
+        map((cells: ClickedItem[]) => cells[cells.length - 1]),
+        takeUntil(this.destroy$)
+      )
       .subscribe(({ element: el } = { element: null, id: 0 }) => {
         if (!el) {
           return;
@@ -78,8 +78,11 @@ export class FieldComponent implements OnInit, AfterViewInit {
         this.addCssClass(el, 'r');
       });
 
-    concat(odd, this.clickedCells$)
-      .pipe(map((cells: ClickedItem[]) => cells[cells.length - 1]))
+    concat(odd$, this.tictactoe.clickedCells$)
+      .pipe(
+        map((cells: ClickedItem[]) => cells[cells.length - 1]),
+        takeUntil(this.destroy$)
+      )
       .subscribe(({ element: el }) => {
         if (!el) {
           return;
@@ -87,15 +90,16 @@ export class FieldComponent implements OnInit, AfterViewInit {
         this.addCssClass(el, 'ch');
       });
 
-    const moreThenFive$ = this.clickedCells$.pipe(
-      filter((arr: ClickedItem[]) => arr.length > 5)
+    const moreThenFive$ = this.tictactoe.clickedCells$.pipe(
+      filter((arr: ClickedItem[]) => arr.length > 5),
+      takeUntil(this.destroy$)
     );
 
-    concat(even, moreThenFive$)
+    concat(even$, moreThenFive$)
       .pipe(map((arr: ClickedItem[]) => arr.filter((_, i) => i % 2 !== 0)))
       .subscribe((playerEven) => this.checkWinCombination(playerEven));
 
-    concat(odd, moreThenFive$)
+    concat(odd$, moreThenFive$)
       .pipe(map((arr: ClickedItem[]) => arr.filter((_, i) => i % 2 === 0)))
       .subscribe((playerOdd) => this.checkWinCombination(playerOdd));
   }
@@ -105,15 +109,22 @@ export class FieldComponent implements OnInit, AfterViewInit {
       return;
     }
 
-    fromEvent(this.field.nativeElement, 'click')
+    const click$ = fromEvent(this.field.nativeElement, 'click').pipe(
+      takeUntil(this.destroy$)
+    );
+
+    click$
       .pipe(
-        filter((e) => Boolean(e.target)),
-        takeUntil(this.destroy$)
+        withLatestFrom(this.tictactoe.isWin$),
+        filter(([e, isWin]) => Boolean(e.target) && !isWin)
       )
-      .subscribe(({ target }) => {
+      .subscribe(([{ target }]) => {
         const id = Number((target as HTMLDivElement).getAttribute('data-id'));
-        this.clickedCells$.pipe(take(1)).subscribe((current) => {
-          this.clickedCells$.next([
+        if (!id) {
+          return;
+        }
+        this.tictactoe.clickedCells$.pipe(take(1)).subscribe((current) => {
+          this.tictactoe.clickedCells$.next([
             ...current,
             { id, element: target as HTMLDivElement },
           ]);
@@ -134,7 +145,7 @@ export class FieldComponent implements OnInit, AfterViewInit {
       return;
     }
 
-    this.destroy$.next(null);
+    this.tictactoe.updateIsWin(true);
     const cssWinClass = this.getCssWinClass(winCombination);
 
     player

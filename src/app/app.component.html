@@ -1,5 +1,12 @@
 <div id="app">
+  <app-info-card>
+    <app-button classNames="restart-btn" (click)="resetGame()">
+      Restart Game
+    </app-button>
+  </app-info-card>
+
   <app-field></app-field>
+
   <app-button disabled="true" [classNames]="'undo-btn'">Undo</app-button>
   <app-button disabled="true" [classNames]="'redo-btn'">Redo</app-button>
 </div>

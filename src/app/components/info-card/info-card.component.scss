@@ -1,0 +1,27 @@
+.won-message {
+  color: #191970;
+}
+
+.won-title {
+  width: 100%;
+  display: flex;
+  text-align: left;
+  flex-direction: row;
+  align-items: center;
+  font-size: 24px;
+  font-weight: 600;
+  color: #3c763d;
+  background-color: #dff0d8;
+  border-color: #d6e9c6;
+  padding: 12px 10px;
+  border: 1px solid transparent;
+  padding-bottom: 11px;
+  border-radius: 4px;
+}
+
+.won-message {
+  margin-right: 12px;
+  display: inline-block;
+  flex-grow: 2;
+  color: inherit;
+}
